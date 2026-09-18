@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weighted Question Network G_Q^W — Interactive Visualizer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0a0c10;
+    color: #e2e8f0;
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+    height: 100vh; width: 100vw;
+  }
+
+  #header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: linear-gradient(135deg, #0a0c10f0, #111520f0);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid #1a2235;
+    padding: 10px 24px;
+    display: flex; align-items: center; gap: 20px;
+  }
+
+  #header h1 {
+    font-size: 15px; font-weight: 700;
+    background: linear-gradient(90deg, #34d399, #60a5fa, #a78bfa);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    white-space: nowrap;
+  }
+  #header .subtitle { font-size: 11px; color: #4a5568; }
+
+  #stats-bar { display: flex; gap: 12px; margin-left: auto; align-items: center; flex-wrap: wrap; }
+  .stat-chip {
+    background: #131820; border: 1px solid #1e2d40;
+    border-radius: 6px; padding: 3px 10px;
+    font-size: 11px; font-family: 'Space Mono', monospace;
+    color: #64748b; white-space: nowrap;
+  }
+  .stat-chip span { color: #34d399; font-weight: 700; }
+  .stat-chip.alert span { color: #f87171; }
+
+  /* COMPLETENESS BADGE */
+  #complete-badge {
+    display: flex; align-items: center; gap: 6px;
+    background: #0d2014; border: 1px solid #16a34a;
+    border-radius: 20px; padding: 3px 12px;
+    font-size: 11px; font-weight: 600; color: #34d399;
+    font-family: 'Space Mono', monospace;
+  }
+  #complete-badge .dot { width:8px; height:8px; border-radius:50%; background:#34d399; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+  #canvas-container { position: fixed; top: 52px; left: 0; right: 0; bottom: 0; }
+  svg { width: 100%; height: 100%; }
+
+  .link { pointer-events: all; cursor: pointer; }
+
+  #tooltip {
+    position: fixed;
+    background: #111520; border: 1px solid #1e3050;
+    border-radius: 12px; padding: 14px 18px;
+    font-size: 12px; max-width: 320px;
+    pointer-events: none; z-index: 200;
+    opacity: 0; transition: opacity 0.15s;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.75);
+  }
+  #tooltip.visible { opacity: 1; }
+  #tooltip .tt-title { font-weight: 700; font-size: 14px; color: #f1f5f9; margin-bottom: 8px; display:flex; align-items:center; gap:8px; }
+  #tooltip .tt-badge { font-size: 10px; font-family:'Space Mono',monospace; padding: 2px 8px; border-radius: 20px; font-weight: 700; }
+  #tooltip .tt-row { display:flex; justify-content:space-between; color:#64748b; margin-bottom: 4px; gap:16px; }
+  #tooltip .tt-val { font-family:'Space Mono',monospace; font-size:11px; font-weight:700; }
+  #tooltip .tt-full { color:#94a3b8; font-size:11px; margin-top:8px; border-top:1px solid #1e2d40; padding-top:8px; line-height:1.6; }
+  #tooltip .tt-neighbors { font-size:10px; color:#4a6080; margin-top:5px; font-family:'Space Mono',monospace; }
+
+  #legend {
+    position: fixed; bottom: 20px; left: 20px;
+    background: #0e1218cc; backdrop-filter: blur(12px);
+    border: 1px solid #1a2235; border-radius: 12px;
+    padding: 12px 16px; z-index: 100; min-width: 200px;
+  }
+  #legend h3 { font-size: 11px; font-weight: 700; color: #4a5568; text-transform: uppercase; letter-spacing:.08em; margin-bottom: 9px; }
+  .legend-row { display:flex; align-items:center; gap:9px; margin-bottom:6px; font-size:12px; color:#64748b; }
+  .legend-dot { width:11px; height:11px; border-radius:50%; flex-shrink:0; }
+  #legend .note { font-size:10px; color:#334155; margin-top:9px; border-top:1px solid #1a2235; padding-top:8px; line-height:1.5; }
+
+  /* METRIC BAR */
+  #metric-bar {
+    position: fixed; top: 52px; left: 0;
+    display: flex; z-index: 80;
+    background: #0c1018;
+    border-bottom: 1px solid #1a2235;
+    border-right: 1px solid #1a2235;
+    border-bottom-right-radius: 10px;
+  }
+  .metric-btn {
+    padding: 7px 14px; font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .06em;
+    cursor: pointer; border: none; background: transparent;
+    color: #4a5568; font-family: 'Inter', sans-serif;
+    transition: all 0.2s;
+  }
+  .metric-btn.active { background: #1a2d40; color: #34d399; }
+  .metric-btn:hover { color: #94a3b8; }
+  #metric-bar .sep { color: #1e2d40; padding: 7px 0; font-size: 14px; }
+
+  #controls {
+    position: fixed; bottom: 20px; right: 20px;
+    display: flex; flex-direction: column; gap: 8px; z-index: 100;
+  }
+  .ctrl-btn {
+    background: #131820; border: 1px solid #1e2d40;
+    color: #64748b; border-radius: 8px; padding: 7px 14px;
+    font-size: 12px; font-family: 'Inter', sans-serif;
+    cursor: pointer; transition: all 0.2s; text-align: center;
+  }
+  .ctrl-btn:hover { background: #1a2438; border-color: #34d399; color: #34d399; }
+  .ctrl-btn.active-btn { background: #0d2014; border-color: #34d399; color: #34d399; }
+
+  #filter-bar {
+    position: fixed; top: 52px; right: 0;
+    width: 240px; height: calc(100vh - 52px);
+    background: #0c1018f0; backdrop-filter: blur(12px);
+    border-left: 1px solid #1a2235; padding: 16px; z-index: 50;
+    overflow-y: auto; transform: translateX(100%); transition: transform 0.3s;
+  }
+  #filter-bar.open { transform: translateX(0); }
+  #filter-bar h3 { font-size: 12px; font-weight: 700; color: #34d399; text-transform: uppercase; letter-spacing:.1em; margin-bottom: 14px; }
+  .filter-label { font-size: 11px; color: #4a5568; margin-bottom: 4px; margin-top: 12px; }
+  .filter-slider { width: 100%; accent-color: #34d399; cursor: pointer; }
+  .domain-toggle { display:flex; align-items:center; gap:8px; margin-bottom:6px; cursor:pointer; font-size:12px; color:#64748b; }
+  .domain-toggle input { accent-color: #34d399; cursor: pointer; }
+  .filter-val { font-size:11px; color:#34d399; font-family:'Space Mono',monospace; }
+
+  #weight-warning {
+    position: fixed; top: 90px; left: 50%; transform: translateX(-50%);
+    background: #1a1000; border: 1px solid #f59e0b;
+    color: #f59e0b; font-size: 11px; border-radius: 8px;
+    padding: 6px 16px; z-index: 200; display: none;
+    font-family: 'Space Mono', monospace;
+  }
+
+  #loading-overlay {
+    position: fixed; inset: 0; background: #0a0c10f0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 999; transition: opacity 0.5s;
+  }
+  #loading-overlay .spinner {
+    width: 48px; height: 48px; border: 3px solid #1a2235;
+    border-top-color: #34d399; border-radius: 50%;
+    animation: spin 0.8s linear infinite; margin-bottom: 20px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading-overlay p { color: #64748b; font-size: 13px; font-family: 'Space Mono', monospace; }
+  #loading-overlay .sub { font-size:11px; color:#334155; margin-top:6px; }
+</style>
+</head>
+<body>
+
+<div id="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <p>Building K₆₀ — Complete Graph</p>
+  <div class="sub">Rendering 60 nodes · 1,770 edges…</div>
+</div>
+
+<div id="header">
+  <div>
+    <h1>Weighted Question Network  G_Q^W</h1>
+    <div class="subtitle">Every question pair shares ≥ 1 student with extreme views on both (K₆₀ complete graph). Edge thickness → shared students.</div>
+  </div>
+  <div id="stats-bar">
+    <div id="complete-badge"><div class="dot"></div>K₆₀ Complete Graph</div>
+    <div class="stat-chip">Nodes <span>60</span></div>
+    <div class="stat-chip">Total edges <span>1,770</span></div>
+    <div class="stat-chip">Shown <span id="st-shown">—</span></div>
+    <div class="stat-chip">Weight range <span id="st-wrange">—</span></div>
+  </div>
+</div>
+
+<div id="metric-bar">
+  <button class="metric-btn active" onclick="setMetric('strength')"   id="m-strength">Strength</button><span class="sep">|</span>
+  <button class="metric-btn"        onclick="setMetric('degree')"     id="m-degree">Bip. Degree</button>
+</div>
+
+<div id="weight-warning" id="warn">⚠ All 1,770 edges visible — may be slow</div>
+
+<div id="canvas-container">
+  <svg id="main-svg"></svg>
+</div>
+
+<div id="tooltip"></div>
+
+<div id="legend">
+  <h3>Legend</h3>
+  <div class="legend-row"><div class="legend-dot" style="background:#60a5fa"></div>Technology (T)</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#34d399"></div>Education (E)</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#f59e0b"></div>Society (S)</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#f87171"></div>Environment (V)</div>
+  <div class="note">
+    Node size → metric score<br>
+    Edge opacity → edge weight<br>
+    Hover for details · Drag nodes<br>
+    <strong style="color:#334155">Default: edges ≥ 30 shown<br>(Full K₆₀ via ⚙ Filters)</strong>
+  </div>
+</div>
+
+<div id="controls">
+  <button class="ctrl-btn" onclick="resetZoom()">⟳ Reset View</button>
+  <button class="ctrl-btn" id="btn-all" onclick="toggleAllEdges()">Show All Edges</button>
+  <button class="ctrl-btn" onclick="toggleFilter()">⚙ Filters</button>
+</div>
+
+<div id="filter-bar">
+  <h3>Filters</h3>
+  <div class="filter-label">Domain</div>
+  <div class="domain-toggle"><input type="checkbox" id="d-T" checked onchange="applyFilters()"> Technology (T)</div>
+  <div class="domain-toggle"><input type="checkbox" id="d-E" checked onchange="applyFilters()"> Education (E)</div>
+  <div class="domain-toggle"><input type="checkbox" id="d-S" checked onchange="applyFilters()"> Society (S)</div>
+  <div class="domain-toggle"><input type="checkbox" id="d-V" checked onchange="applyFilters()"> Environment (V)</div>
+  <div class="filter-label">Min Edge Weight (shared students)</div>
+  <input type="range" class="filter-slider" id="weight-slider" min="1" max="52" value="30" oninput="weightUpdate(this.value)">
+  <div class="filter-val" id="weight-display">≥ 30</div>
+  <div class="filter-label">Min Bipartite Degree</div>
+  <input type="range" class="filter-slider" id="bdeg-slider" min="0" max="65" value="0" oninput="bdegUpdate(this.value)">
+  <div class="filter-val" id="bdeg-display">≥ 0</div>
+  <div style="margin-top:16px; padding-top:12px; border-top:1px solid #1a2235;">
+    <div class="filter-label" style="color:#f59e0b;">Performance</div>
+    <div style="font-size:10px;color:#4a5568;line-height:1.6;">
+      Showing all 1,770 edges at low weight thresholds may be sluggish. Use weight ≥ 20 for smooth interaction.
+    </div>
+  </div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const W = window.innerWidth, H = window.innerHeight - 52;
+
+const svg = d3.select('#main-svg').attr('width', W).attr('height', H);
+const defs = svg.append('defs');
+
+// Radial gradient for background
+const radGrad = defs.append('radialGradient').attr('id','bg-grad').attr('cx','50%').attr('cy','50%').attr('r','60%');
+radGrad.append('stop').attr('offset','0%').attr('stop-color','#0d1525').attr('stop-opacity','0.5');
+radGrad.append('stop').attr('offset','100%').attr('stop-color','#0a0c10').attr('stop-opacity','0');
+svg.append('rect').attr('width',W).attr('height',H).attr('fill','url(#bg-grad)');
+
+// Domain glow filters
+const glowMap = { T:'#60a5fa', E:'#34d399', S:'#f59e0b', V:'#f87171' };
+Object.entries(glowMap).forEach(([d, color]) => {
+  const f = defs.append('filter').attr('id','glow-'+d)
+    .attr('x','-60%').attr('y','-60%').attr('width','220%').attr('height','220%');
+  f.append('feGaussianBlur').attr('stdDeviation','5').attr('result','blur');
+  f.append('feFlood').attr('flood-color', color).attr('flood-opacity','0.6').attr('result','col');
+  f.append('feComposite').attr('in','col').attr('in2','blur').attr('operator','in').attr('result','cb');
+  const m = f.append('feMerge');
+  m.append('feMergeNode').attr('in','cb');
+  m.append('feMergeNode').attr('in','SourceGraphic');
+});
+
+const g = svg.append('g').attr('id','scene');
+const zoom = d3.zoom().scaleExtent([0.05, 10])
+  .on('zoom', e => g.attr('transform', e.transform));
+svg.call(zoom);
+
+const domainColor = { T:'#60a5fa', E:'#34d399', S:'#f59e0b', V:'#f87171' };
+
+let graphData = null;
+let simulation = null;
+let linkSel, nodeSel, labelSel;
+let allEdges = [], visEdges = [];
+let minWeight = 30, minBDeg = 0;
+let currentMetric = 'strength';
+let showAllEdges = false;
+
+fetch('projected_data.json').then(r => r.json()).then(data => {
+  graphData = data;
+  allEdges = data.links;
+
+  document.getElementById('st-wrange').textContent = `${data.min_weight}–${data.max_weight}`;
+  document.getElementById('weight-slider').max = data.max_weight;
+
+  init(data);
+  setTimeout(() => {
+    const overlay = document.getElementById('loading-overlay');
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.style.display = 'none', 500);
+  }, 800);
+});
+
+function getMetricVal(d) {
+  if (currentMetric === 'strength') {
+    return d._strengthNorm ?? 0.5;
+  } else {
+    return d._degreeNorm ?? 0.5;
+  }
+}
+
+function getRadius(d) { return 6 + getMetricVal(d) * 26; }
+
+function init(data) {
+  // Normalise metrics on node objects
+  const maxStr = d3.max(data.nodes, n => n.strength);
+  const maxDeg = d3.max(data.nodes, n => n.bipartite_degree);
+  const nodes = data.nodes.map(d => ({
+    ...d,
+    _strengthNorm: d.strength / maxStr,
+    _degreeNorm:   d.bipartite_degree / maxDeg
+  }));
+
+  visEdges = allEdges.filter(l => l.weight >= minWeight);
+
+  // Color scale: low weight = dim blue, high weight = bright cyan/white
+  const wExtent = [data.min_weight, data.max_weight];
+  const edgeColorScale = d3.scaleSequential(d3.interpolateCool).domain(wExtent);
+  const edgeOpScale = d3.scaleLinear().domain(wExtent).range([0.04, 0.65]).clamp(true);
+  const edgeWdScale = d3.scaleLinear().domain(wExtent).range([0.4, 5]).clamp(true);
+
+  simulation = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(visEdges).id(d => d.id)
+      .distance(l => Math.max(30, 120 - l.weight * 0.8))
+      .strength(l => l.weight / data.max_weight * 0.5))
+    .force('charge', d3.forceManyBody().strength(d => -150 - getMetricVal(d) * 350))
+    .force('center', d3.forceCenter(W/2, H/2))
+    .force('collision', d3.forceCollide().radius(d => getRadius(d) + 5).iterations(3))
+    .alphaDecay(0.018);
+
+  // Draw links
+  linkSel = g.append('g').attr('class','links')
+    .selectAll('line').data(visEdges).join('line')
+    .attr('class','link')
+    .attr('stroke', l => edgeColorScale(l.weight))
+    .attr('stroke-width', l => edgeWdScale(l.weight))
+    .attr('stroke-opacity', l => edgeOpScale(l.weight))
+    .on('mouseover', (e, l) => onHoverLink(e, l, nodes, edgeColorScale))
+    .on('mouseout', onMouseOut);
+
+  // Draw nodes
+  nodeSel = g.append('g').attr('class','nodes')
+    .selectAll('circle').data(nodes).join('circle')
+    .attr('r', d => getRadius(d))
+    .attr('fill', d => domainColor[d.domain])
+    .attr('stroke', d => d3.color(domainColor[d.domain]).darker(1.2).toString())
+    .attr('stroke-width', 2)
+    .style('filter', d => `url(#glow-${d.domain})`)
+    .style('cursor','pointer')
+    .call(drag(simulation))
+    .on('mouseover', (e, d) => onHoverNode(e, d, nodes))
+    .on('mouseout', onMouseOut);
+
+  // Labels
+  labelSel = g.append('g').attr('class','labels')
+    .selectAll('text').data(nodes).join('text')
+    .text(d => d.id)
+    .attr('font-size', d => Math.max(9, 8 + getMetricVal(d) * 7))
+    .attr('fill', '#e2e8f0')
+    .attr('text-anchor','middle').attr('dy','0.35em')
+    .attr('font-family','Space Mono, monospace')
+    .attr('font-weight', d => getMetricVal(d) > 0.7 ? '700' : '400')
+    .attr('pointer-events','none');
+
+  simulation.on('tick', () => {
+    linkSel.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+            .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    nodeSel.attr('cx', d => d.x).attr('cy', d => d.y);
+    labelSel.attr('x', d => d.x).attr('y', d => d.y);
+  });
+
+  updateEdgeCount();
+}
+
+function updateEdgeCount() {
+  const vis = linkSel ? linkSel.filter(function() { return d3.select(this).attr('display') !== 'none'; }).size() : 0;
+  document.getElementById('st-shown').textContent = vis || visEdges.length;
+}
+
+function drag(sim) {
+  return d3.drag()
+    .on('start', (e,d) => { if(!e.active) sim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
+    .on('drag',  (e,d) => { d.fx=e.x; d.fy=e.y; })
+    .on('end',   (e,d) => { if(!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; });
+}
+
+const tt = document.getElementById('tooltip');
+function showTT(html, e) { tt.innerHTML = html; tt.classList.add('visible'); moveTT(e); }
+function moveTT(e) {
+  let x = e.clientX+18, y = e.clientY+18;
+  if (x+340 > window.innerWidth) x = e.clientX-340;
+  if (y+260 > window.innerHeight) y = e.clientY-260;
+  tt.style.left = x+'px'; tt.style.top = y+'px';
+}
+svg.on('mousemove', e => moveTT(e));
+
+function onHoverNode(e, d, nodes) {
+  // Find connected edges (from full allEdges set)
+  const conn = allEdges.filter(l => l.source===d.id||l.target===d.id||l.source?.id===d.id||l.target?.id===d.id);
+  const topN = [...conn].sort((a,b)=>b.weight-a.weight).slice(0,6)
+    .map(l => { const nb=(l.source===d.id||l.source?.id===d.id)?(l.target?.id??l.target):(l.source?.id??l.source); return `${nb}(${l.weight})`; })
+    .join(' · ');
+
+  linkSel.attr('stroke-opacity', l => {
+    const sid=l.source?.id??l.source, tid=l.target?.id??l.target;
+    return (sid===d.id||tid===d.id) ? 0.95 : 0.02;
+  });
+  nodeSel.attr('opacity', n => n.id===d.id||conn.some(l=>(l.source?.id??l.source)===n.id||(l.target?.id??l.target)===n.id) ? 1 : 0.12);
+
+  const domainNames = {T:'Technology',E:'Education',S:'Society',V:'Environment'};
+  showTT(`
+    <div class="tt-title">
+      <span style="color:${domainColor[d.domain]}">${d.id}</span>
+      <span class="tt-badge" style="background:${domainColor[d.domain]}22;color:${domainColor[d.domain]}">${domainNames[d.domain]}</span>
+    </div>
+    <div class="tt-row"><span>Bipartite degree (Set B)</span><span class="tt-val" style="color:#34d399">${d.bipartite_degree}</span></div>
+    <div class="tt-row"><span>Total strength Σw</span><span class="tt-val" style="color:#60a5fa">${d.strength}</span></div>
+    <div class="tt-row"><span>Connections (K₆₀)</span><span class="tt-val">59 / 59</span></div>
+    <div class="tt-row"><span>Shown connections</span><span class="tt-val">${conn.filter(l=>l.weight>=minWeight).length}</span></div>
+    <div class="tt-full">${d.full}</div>
+    <div class="tt-neighbors">Top: ${topN}</div>
+  `, e);
+}
+
+function onHoverLink(e, l, nodes, colorScale) {
+  const sid = l.source?.id ?? l.source, tid = l.target?.id ?? l.target;
+  const sn = graphData.nodes.find(n => n.id === sid);
+  const tn = graphData.nodes.find(n => n.id === tid);
+
+  linkSel.attr('stroke-opacity', ll => ll === l ? 1 : 0.02);
+
+  showTT(`
+    <div class="tt-title" style="font-size:12px;">
+      <span style="color:${domainColor[sn?.domain||'T']}">${sid}</span>
+      <span style="color:#4a5568">↔</span>
+      <span style="color:${domainColor[tn?.domain||'T']}">${tid}</span>
+    </div>
+    <div class="tt-row"><span>Shared extreme students</span><span class="tt-val" style="color:#34d399">${l.weight}</span></div>
+    <div class="tt-full" style="font-size:10px;line-height:1.5;">
+      <b style="color:${domainColor[sn?.domain||'T']}">${sid}:</b> ${sn?.full?.slice(0,70)}…<br>
+      <b style="color:${domainColor[tn?.domain||'T']}">${tid}:</b> ${tn?.full?.slice(0,70)}…
+    </div>
+  `, e);
+}
+
+function onMouseOut() {
+  tt.classList.remove('visible');
+  if (!linkSel) return;
+  // Restore opacity based on current filters
+  const wExtent = [graphData.min_weight, graphData.max_weight];
+  const edgeOpScale = d3.scaleLinear().domain(wExtent).range([0.04, 0.65]).clamp(true);
+  linkSel.attr('stroke-opacity', l => edgeOpScale(l.weight));
+  nodeSel.attr('opacity', 1);
+}
+
+function setMetric(m) {
+  currentMetric = m;
+  document.querySelectorAll('.metric-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('m-'+m).classList.add('active');
+  if (!nodeSel) return;
+  nodeSel.transition().duration(500).attr('r', d => getRadius(d));
+  labelSel.transition().duration(500)
+    .attr('font-size', d => Math.max(9, 8 + getMetricVal(d) * 7))
+    .attr('font-weight', d => getMetricVal(d) > 0.7 ? '700' : '400');
+  if (simulation) {
+    simulation.force('charge', d3.forceManyBody().strength(d => -150 - getMetricVal(d) * 350))
+      .force('collision', d3.forceCollide().radius(d => getRadius(d) + 5).iterations(3))
+      .alpha(0.35).restart();
+  }
+}
+
+function toggleAllEdges() {
+  showAllEdges = !showAllEdges;
+  const btn = document.getElementById('btn-all');
+  const warn = document.getElementById('weight-warning');
+  if (showAllEdges) {
+    btn.classList.add('active-btn');
+    btn.textContent = '✓ All Edges';
+    document.getElementById('weight-slider').value = 1;
+    document.getElementById('weight-display').textContent = '≥ 1';
+    warn.style.display = 'block';
+    minWeight = 1;
+  } else {
+    btn.classList.remove('active-btn');
+    btn.textContent = 'Show All Edges';
+    document.getElementById('weight-slider').value = 30;
+    document.getElementById('weight-display').textContent = '≥ 30';
+    warn.style.display = 'none';
+    minWeight = 30;
+  }
+  rebuildLinks();
+}
+
+function rebuildLinks() {
+  // Re-filter edges and rebuild the link selection without restarting the full simulation
+  const showD = {T:document.getElementById('d-T').checked, E:document.getElementById('d-E').checked, S:document.getElementById('d-S').checked, V:document.getElementById('d-V').checked};
+
+  visEdges = allEdges.filter(l => {
+    const sid = l.source?.id??l.source, tid = l.target?.id??l.target;
+    const sn = graphData.nodes.find(n=>n.id===sid), tn = graphData.nodes.find(n=>n.id===tid);
+    if (!sn||!tn) return false;
+    if (!showD[sn.domain]||!showD[tn.domain]) return false;
+    if (sn.bipartite_degree < minBDeg || tn.bipartite_degree < minBDeg) return false;
+    return l.weight >= minWeight;
+  });
+
+  const wExtent = [graphData.min_weight, graphData.max_weight];
+  const edgeColorScale = d3.scaleSequential(d3.interpolateCool).domain(wExtent);
+  const edgeOpScale = d3.scaleLinear().domain(wExtent).range([0.04, 0.65]).clamp(true);
+  const edgeWdScale = d3.scaleLinear().domain(wExtent).range([0.4, 5]).clamp(true);
+
+  g.select('.links').remove();
+  linkSel = g.insert('g', '.nodes').attr('class','links')
+    .selectAll('line').data(visEdges).join('line')
+    .attr('class','link')
+    .attr('stroke', l => edgeColorScale(l.weight))
+    .attr('stroke-width', l => edgeWdScale(l.weight))
+    .attr('stroke-opacity', l => edgeOpScale(l.weight))
+    .on('mouseover', (e,l) => onHoverLink(e, l, graphData.nodes, edgeColorScale))
+    .on('mouseout', onMouseOut);
+
+  // Update the simulation links so tick updates work
+  simulation.force('link').links(visEdges);
+  simulation.alpha(0.2).restart();
+
+  document.getElementById('st-shown').textContent = visEdges.length;
+}
+
+function weightUpdate(v) {
+  document.getElementById('weight-display').textContent = '≥ ' + v;
+  minWeight = +v;
+  if (v <= 5) {
+    document.getElementById('weight-warning').style.display = 'block';
+  } else {
+    document.getElementById('weight-warning').style.display = 'none';
+  }
+  showAllEdges = (+v === 1);
+  const btn = document.getElementById('btn-all');
+  btn.classList.toggle('active-btn', showAllEdges);
+  btn.textContent = showAllEdges ? '✓ All Edges' : 'Show All Edges';
+  rebuildLinks();
+}
+
+function bdegUpdate(v) {
+  document.getElementById('bdeg-display').textContent = '≥ ' + v;
+  minBDeg = +v;
+  rebuildLinks();
+}
+
+function applyFilters() { rebuildLinks(); }
+
+function resetZoom() {
+  svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity.translate(W*0.05, H*0.02).scale(1));
+}
+
+let filterOpen = false;
+function toggleFilter() {
+  filterOpen = !filterOpen;
+  document.getElementById('filter-bar').classList.toggle('open', filterOpen);
+}
+
+window.addEventListener('resize', () => {
+  svg.attr('width', window.innerWidth).attr('height', window.innerHeight - 52);
+});
+</script>
+</body>
+</html>
