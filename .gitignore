@@ -6,3 +6,9 @@ __pycache__/
 *.out
 *.toc
 *.synctex.gz
+
+# LaTeX build files
+report/*.aux
+report/*.log
+report/*.out
+report/*.toc
