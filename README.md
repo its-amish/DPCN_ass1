@@ -4,7 +4,7 @@ DPCN Assignment 1, IIIT Hyderabad. We build **four networks** from one class sur
 (96 responses, 60 Likert statements across Technology, Education, Society & Ethics, Environment)
 and compare what each one reveals.
 
-**Report:** [`report/report.pdf`](report/report.pdf) — the single, self-contained team report.
+**Report:** [`report/MATlabmatlab_ass1.pdf`](report/MATlabmatlab_ass1.pdf) — the single, self-contained team report.
 **Interactive portal:** open [`index.html`](index.html) in a browser for the figures and the D3 visualisers.
 
 ## The four networks
@@ -43,7 +43,7 @@ survey's own sections. 13 questions stay isolated — the ones the class divides
 clean.py                       shared cleaning: Likert -> -2..+2, drops the 5 empty responses (91 students)
 Survey_Results_UC.csv          raw survey data
 survey_clean.csv               cleaned data written by clean.py
-report/report.tex|.pdf         the team report
+report/MATlabmatlab_ass1.tex|.pdf   the team report (submission name)
 index.html                     interactive portal
 Student Network/               Network A: student_network.ipynb + student_plots/
 Extreme Bipartite Network/     Networks B and C: main.ipynb + extreme_plots/ + Visualizers/
@@ -61,7 +61,7 @@ Network B applies its own 1–5 mapping and extremes filter.
 ```bash
 pip install -r requirements.txt
 jupyter nbconvert --to notebook --execute --inplace "Student Network/student_network.ipynb"
-cd report && pdflatex report.tex && pdflatex report.tex
+cd report && pdflatex MATlabmatlab_ass1.tex && pdflatex MATlabmatlab_ass1.tex
 ```
 
 Running a notebook regenerates that network's figures in place; the report picks them up on the next build.
