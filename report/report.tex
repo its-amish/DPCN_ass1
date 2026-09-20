@@ -21,21 +21,24 @@
 
 \title{\textbf{Assignment 1: Opinion Network Formation}\\[0.3em]
 \large Three Views of One Survey: Student--Student, Student--Question and Question--Question Networks}
-\author{Team \textbf{MATlab}\\[0.4em] Mayank Kar \quad Tanush Garg \quad Amish Goyal\\ IIIT Hyderabad --- Dynamical Processes on Complex Networks}
+\author{Team \textbf{MATlab matlab?}\\[0.4em] Mayank Kar \quad Tanush Garg \quad Amish Goyal\\ IIIT Hyderabad --- Dynamical Processes on Complex Networks}
 \date{September 2026}
 
 \begin{document}
 \maketitle
 
 \section{Team Name}
-\textbf{MATlab}
+\textbf{MATlab matlab?}
 
 \section{GitHub Repository}
 \url{https://github.com/its-amish/DPCN_ass1}
 
-The repository contains \texttt{clean.py} (shared cleaning), \texttt{student\_network.ipynb} (Network~A),
-\texttt{Extreme Bipartite Network/main.ipynb} (Networks~B and~C), all figures used below, and the interactive
-D3 visualisers in \texttt{Extreme Bipartite Network/Visualizers/}.
+The repository is organised by network: \texttt{Student Network/} (Network~A), \texttt{Extreme Bipartite
+Network/} (Networks~B and~C, plus interactive D3 visualisers), and \texttt{Question Network/} (Network~D). The
+shared cleaning module \texttt{clean.py} sits at the repository root and is used by Networks~A and~D. Every
+figure and number in this report is produced by the notebook in the corresponding folder; the numbers quoted for
+Networks~B, C and~D were additionally re-derived from the raw CSV as a cross-check. This report is built from
+\texttt{report/report.tex}.
 
 \section{Dataset Documentation}
 
@@ -83,7 +86,7 @@ The three networks need different things from the data, so the project uses two 
 \small
 \begin{tabular}{p{3.9cm} p{5.2cm} p{5.2cm}}
 \toprule
- & \textbf{Preparation 1 (Network A)} & \textbf{Preparation 2 (Networks B, C)} \\
+ & \textbf{Preparation 1 (Networks A, D)} & \textbf{Preparation 2 (Networks B, C)} \\
 \midrule
 Encoding & $-2$ Strongly Disagree \dots $+2$ Strongly Agree; sign = polarity, size = strength
         & $1$ Strongly Disagree \dots $5$ Strongly Agree \\
@@ -97,8 +100,8 @@ Result & 91 students $\times$ 60 questions, 242 missing cells & 2{,}362 extreme 
 \end{tabular}
 \end{center}
 
-Preparation~1 is implemented once in \texttt{clean.py} and adds 3 to recover the conventional 1--5 scale, so the
-two encodings are interchangeable. One caveat should be recorded honestly: the 7 respondents that
+Preparation~1 is implemented once in \texttt{clean.py}, is shared by Networks~A and~D, and adds 3 to recover the
+conventional 1--5 scale, so the two encodings are interchangeable. One caveat should be recorded honestly: the 7 respondents that
 Preparation~2 drops for having ``no extreme view'' are mostly not opinion-moderates. Five of them submitted an
 empty form and one (ID 77) answered only Technology; \textbf{ID 119 is the only respondent who genuinely
 answered the survey without ever using an extreme}. Preparation~2's remaining 89 students therefore still
@@ -107,22 +110,28 @@ Networks~B and~C are correspondingly understated.
 
 \section{Pipeline Followed}
 
-We build three networks from the same survey, each answering a different question.
+We build four networks from the same survey, each answering a different question. Two look at the students,
+two at the questions, and the two question networks are built on deliberately different definitions of a link.
 
 \begin{center}
-\small
-\begin{tabular}{p{2.6cm}p{3.6cm}p{4.3cm}p{3.6cm}}
+\footnotesize
+\begin{tabular}{p{1.9cm}p{2.9cm}p{3.2cm}p{2.7cm}p{2.9cm}}
 \toprule
- & \textbf{Network A} & \textbf{Network B} & \textbf{Network C} \\
+ & \textbf{Network A} & \textbf{Network B} & \textbf{Network C} & \textbf{Network D} \\
 \midrule
-Nodes & 91 students & 89 students + 60 questions & 60 questions \\
-Edge means & ``agree more than chance'' & ``holds an extreme view on'' & ``co-held extreme views'' \\
-Type & weighted, one-mode & bipartite, unweighted & weighted projection of B \\
-Edges & 2{,}026 & 2{,}362 & 1{,}770 (complete $K_{60}$) \\
-Author & Mayank Kar & Tanush Garg & Amish Goyal \\
+Nodes & 91 students & 89 students + 60 questions & 60 questions & 60 questions \\
+Edge means & ``agree more than chance'' & ``holds an extreme view on'' & ``co-held extreme views'' & ``answers rise and fall together'' \\
+Type & weighted, one-mode & bipartite, unweighted & weighted projection of B & weighted, thresholded \\
+Edges & 2{,}026 & 2{,}362 & 1{,}770 ($K_{60}$) & 188 \\
+Author & Mayank Kar & Tanush Garg & Tanush Garg & Amish Goyal \\
 \bottomrule
 \end{tabular}
 \end{center}
+
+Networks~C and~D are both question--question networks, but they are not competing answers to the same question.
+C asks \emph{which questions provoke intense feeling in the same students}, and counts only extreme answers; D
+asks \emph{which questions move together across the full five-point scale}, and uses every answer. Read together
+they separate intensity from alignment.
 
 \subsection{Network A --- student--student agreement}
 
@@ -165,9 +174,32 @@ i.e.\ two questions are linked when at least one student holds extreme views on 
 turns out to be the complete graph $K_{60}$, so all further analysis uses the \textbf{weighted} projection
 $G_Q^W$, where $w_{ij}$ counts the students who hold extreme views on both questions.
 
+\subsection{Network D --- question--question correlation}
+
+Network~D starts from Preparation~1 (the same 91 students and the same $-2 \dots +2$ encoding as Network~A) and
+asks, for each of the $\binom{60}{2} = 1{,}770$ question pairs, whether the two statements are answered in step.
+The measure is the \textbf{Spearman rank correlation} $\rho_{ij}$, computed over the students who answered both.
+Spearman rather than Pearson because Likert answers are ordinal, so only the monotonic relationship is
+meaningful.
+
+A correlation matrix is fully connected, so a cutoff is applied: an edge exists iff
+$$\rho_{ij} > 0.35,$$
+with weight $w_{ij} = \rho_{ij}$ and, for path-based measures, distance $d_{ij} = 1/\rho_{ij}$, so that strongly
+correlated statements lie close together. The cutoff discards weak and ambient associations and keeps
+moderate-to-strong ones. Eigenvector centrality then identifies the statements at the core of the belief
+structure and weighted betweenness the statements bridging otherwise separate groups. Two further tools
+describe the grouping. \textbf{Louvain} searches for a split of the questions that maximises modularity, the
+share of edge weight falling inside groups minus the share expected if the same edges were rewired at random;
+it is used here only to describe the clusters, not to make a claim about their strength. The \textbf{attribute
+assortativity coefficient} $r$ is the correlation between the section labels (T, E, S, V) at the two ends of an
+edge: $r = 1$ would mean questions link only within their own section, $r = 0$ that the sections say nothing
+about which questions link.
+
 \section{Analysis and Visualizations}
 
 \subsection{Network A: student--student agreement}
+
+\textit{Code and figures: \texttt{Student Network/student\_network.ipynb} (Mayank Kar).}
 
 \begin{figure}[H]
 \centering
@@ -242,6 +274,28 @@ more spread out than an ER graph allows (21.0 against 4.6), but bounded: with 91
 of a power-law. The negative assortativity of the top-2 network is largely constructed, since students naming
 the same popular classmate leave that classmate ringed by low-degree neighbours.
 
+Five centrality measures are used, each capturing a different sense of being well placed in the network. They
+are defined here once and reused for the question networks in Sections~5.3 and~5.4.
+
+\begin{center}
+\small
+\begin{tabular}{p{2.6cm} p{5.0cm} p{6.6cm}}
+\toprule
+\textbf{Measure} & \textbf{Definition} & \textbf{Meaning in Network A} \\
+\midrule
+Degree & $k_i$, the number of edges, divided by $N-1$ & how many classmates this student agrees with more than chance \\
+Strength & $s_i = \sum_j w_{ij}$ & the same, weighted by how far above chance each edge is \\
+Closeness & $(N-1)$ divided by the total distance from $i$ to everyone else & how short the chains of agreement from this student to the rest are \\
+Betweenness & $\sum_{s \neq i \neq t} \sigma_{st}(i)/\sigma_{st}$, the share of shortest paths through $i$ & whether the student sits between others, like a bridge \\
+Eigenvector & $x_i = \lambda^{-1}\sum_j w_{ij}x_j$ & agreeing with classmates who are themselves central \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Path-based measures come in two versions: unweighted, where every edge is one step, and weighted, where an edge
+of weight $w_{ij}$ has length $1/w_{ij}$, so strong agreement is a short step. Student 120 has no edges, so
+eigenvector centrality is computed on the connected part of the network.
+
 \begin{figure}[H]
 \centering
 \begin{minipage}{0.52\textwidth}
@@ -276,6 +330,9 @@ topic}, and agreement is not one single attitude.
 
 \subsection{Network B: student--question extremes}
 
+\textit{Code and figures: \texttt{Extreme Bipartite Network/main.ipynb} (Tanush Garg). Every value quoted below
+was re-derived from the raw CSV for this report.}
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.9\textwidth]{bipartite_plots/bipartite_layout.png}
@@ -285,7 +342,18 @@ wells'' are labelled.}
 \end{figure}
 
 With 2{,}362 edges over a possible $89 \times 60 = 5{,}340$, the bipartite density is $0.4423$: the cohort holds
-extreme views broadly rather than on a handful of pet topics. The graph has exactly one connected component.
+extreme views broadly rather than on a handful of pet topics. The filter retains 45.3\% of the 5{,}218 valid
+responses, and the graph has exactly one connected component.
+
+One property of this network deserves emphasis, because it governs how its results should be read:
+\textbf{2{,}251 of the 2{,}362 edges (95.3\%) are Strongly Agree and only 111 are Strongly Disagree.} The
+``extremes'' network is therefore very nearly a strong-\emph{agreement} network. That explains why its anchors
+(E15, E11, V13) are the same statements Network~A identifies as the most consensual: an edge here records
+intensity of endorsement, not opposition, so questions approaching unanimity dominate. Section by section, the
+mean question degree is highest for Environment (44.5) and Society (41.6) and \emph{lowest} for Technology
+(33.9), so the extreme opinion in this cohort is concentrated in environmental and civic statements rather than
+technological ones --- the mirror image of Network~A's finding that the most divisive questions are largely
+technological.
 
 \begin{figure}[H]
 \centering
@@ -310,6 +378,8 @@ intensity than chance allows.
 
 \subsection{Network C: question--question projection}
 
+\textit{Code and figures: \texttt{Extreme Bipartite Network/main.ipynb} (Tanush Garg).}
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\textwidth]{bipartite_plots/projected_network.png}
@@ -320,7 +390,12 @@ the four survey domains.}
 
 Completeness is itself the finding: \textbf{for every pair of questions there is at least one student holding
 extreme views on both}, so extreme opinion in this cohort is not organised into subject-specific silos. It also
-means unweighted centrality is uniform, which is why the weighted projection $G_Q^W$ carries the analysis.
+means unweighted centrality is uniform --- every question has degree 59 --- which is why the weighted projection
+$G_Q^W$ carries the analysis. Three measures are used on it, the same ones defined in Section~5.1, now applied to questions: \textbf{strength} $C_S(v) = \sum_{u} w_{vu}$, the total number of shared
+extreme views, normalised by the largest such total; \textbf{weighted betweenness}, computed with edge lengths
+$d_{ij} = 1/w_{ij}$ so that heavily shared pairs count as close together; and \textbf{weighted eigenvector}
+centrality, $C_E(v) = \lambda^{-1} \sum_u w_{vu} C_E(u)$, which rewards questions co-held with other central
+questions.
 
 \begin{figure}[H]
 \centering
@@ -355,6 +430,12 @@ E10 & Universities should prioritise innovation over rote learning & 0.875 & 0.1
 questions first (E15 0.084, E11 0.036, V13 0.025) before collapsing towards zero.}
 \end{center}
 
+The \textbf{Molloy--Reed criterion} gives the condition for a giant component to exist in a network with a given
+degree sequence: $\kappa = \langle k^2 \rangle / \langle k \rangle > 2$, where $\langle k \rangle$ is the mean
+degree and $\langle k^2 \rangle$ the mean squared degree. Here every question has degree 59, so
+$\langle k \rangle = 59$, $\langle k^2 \rangle = 3{,}481$ and $\kappa = 59$ --- the largest value a 60-node graph
+can reach, and far above the threshold of 2.
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{bipartite_plots/molloy_reed.png}
@@ -371,48 +452,143 @@ failure. In $K_{60}$ the two are mathematically indistinguishable and the giant 
 graph is nearly exhausted, because removing a node from a complete graph leaves a complete graph.}
 \end{figure}
 
+\subsection{Network D: question--question correlation}
+
+\textit{Code and figures: \texttt{Question Network/question\_network.ipynb} (Amish Goyal). Every value quoted
+below was re-derived from the raw CSV for this report.}
+
+At the $\rho > 0.35$ cutoff the network keeps \textbf{188 of the 1{,}770 possible edges} (density 0.106, average
+degree 6.27). It is not one connected whole: 47 questions form a giant component, and \textbf{13 questions are
+left isolated}, correlating strongly with nothing at all. This is the first of the four networks that
+fragments, and the fragmentation is the finding.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.86\textwidth]{question_plots/network_graph.png}
+\caption{The question--question correlation network. Node colour marks the survey section (blue Technology,
+orange Education, green Society \& Ethics, purple Environment), node size is eigenvector centrality and edge
+width is $\rho$. Sections mix, but the environmental block stands out as a dense, almost unmixed region.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.94\textwidth]{question_plots/correlation_heatmap.png}
+\caption{All $60 \times 60$ Spearman correlations, with the statements grouped by section (in the order E, S, T,
+V). The strongest block by far is Environment, in the lower right: environmental statements move together.
+The Technology block is visibly paler, so technology opinions co-vary far less. The two red rows near the top
+are E02 (written exams measure knowledge) and E03 (compulsory attendance), which correlate \emph{negatively}
+with much of the survey and therefore join nothing at a positive cutoff.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.94\textwidth]{question_plots/centrality_rankings.png}
+\caption{Top ten statements by eigenvector centrality (ideological anchors, left) and by weighted betweenness
+(cross-domain bridges, right).}
+\end{figure}
+
+\begin{center}
+\small
+\begin{tabular}{llcc p{6.4cm}}
+\toprule
+\textbf{Role} & \textbf{ID} & \textbf{Section} & \textbf{Score} & \textbf{Statement} \\
+\midrule
+Anchor & V07 & V & 0.309 & Protecting biodiversity is essential for long-term well-being \\
+(eigenvector) & S09 & S & 0.295 & Universities should promote an inclusive environment \\
+ & V08 & V & 0.285 & Universities should adopt sustainable campus practices \\
+ & V10 & V & 0.269 & Consumers should consider environmental impact when purchasing \\
+ & V12 & V & 0.264 & Sustainability should be integrated into higher education \\
+\midrule
+Bridge & S09 & S & 0.099 & Universities should promote an inclusive environment \\
+(betweenness) & S13 & S & 0.098 & Critical evaluation of online information should be taught \\
+ & T12 & T & 0.074 & Governments should introduce stricter AI regulation \\
+ & S14 & S & 0.061 & Leaders should prioritise ethical decision-making \\
+ & S10 & S & 0.055 & Scientific evidence should inform public policy \\
+\bottomrule
+\end{tabular}
+\captionof{table}{Anchors and bridges in Network~D. Eight of the top ten anchors are environmental statements.}
+\end{center}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{question_plots/centrality_landscape.png}
+\caption{Eigenvector against betweenness centrality. Most statements sit near the origin; S09 is the rare
+statement that is both an anchor and the network's primary bridge, while S13 and T12 bridge without being
+anchors.}
+\end{figure}
+
+\textbf{Reading Network D.} Three results stand out.
+
+\begin{itemize}[nosep]
+  \item \textbf{The belief core is environmental and ethical.} Eight of the ten highest eigenvector scores are
+  Environment statements, interlocked with the ethics items S09 and S14. Agreement on biodiversity, sustainable
+  campuses and responsible consumption moves as one block.
+  \item \textbf{The bridges are the contested interfaces.} S09 (inclusion), S13 (digital literacy) and T12 (AI
+  regulation) sit between clusters. They are where technology opinion connects to educational and civic
+  opinion, and therefore where a change of mind would propagate furthest.
+  \item \textbf{Beliefs do not follow the syllabus.} Louvain finds six organic modules, and section
+  assortativity is only $r = 0.304$: sections matter, but students do not compartmentalise by them. Two modules
+  are genuinely mixed --- AI governance (T03, T10, T12, T13 with S05) and educational modernisation (education
+  items with T01, T02, T06, S07, S11, V02) --- while ecology forms an almost purely environmental module.
+\end{itemize}
+
 \section{Results and Discussion}
 
 \textbf{1. The class agrees far more than it disagrees, and that shapes every network.} Four in five answers are
-on the agree side. In Network A this makes raw agreement worthless as a similarity measure --- it links everyone
-to everyone --- and forces the chance correction. In Network B the same fact appears as a bipartite density of
-0.44, and in Network C as a complete projection. All three networks are dense for the same underlying reason.
+on the agree side. In Network~A this makes raw agreement useless as a similarity measure --- it links everyone
+to everyone --- and forces the chance correction. In Network~B the same fact appears as a bipartite density of
+0.44, and in Network~C as a complete projection. Only Network~D, which measures co-movement rather than
+agreement, escapes it: at $\rho > 0.35$ just 10.6\% of question pairs survive.
 
-\textbf{2. The three views agree on which questions matter, from opposite directions.} Network A finds E15, V13,
-S05, E11 and V09 to be the \emph{most consensual} questions, the ones where matching answers carry almost no
-information. Networks B and C find exactly the same questions to be the strongest ideological anchors. There is
-no contradiction: these are the statements on which a large majority answers Strongly Agree, which makes them
-simultaneously the biggest gravity wells for intense opinion and the least informative for telling students
-apart. Continuous learning (E15) draws extreme views from 71.9\% of the active cohort while adding
-almost nothing to any pair's agreement score.
+\textbf{2. Intensity and alignment pick out different questions, and the contrast is the most informative
+result in the project.} Network~A finds E15, V13, S05, E11 and V09 to be the \emph{most consensual} questions,
+the ones where a matching answer says almost nothing about a pair. Network~C finds exactly those questions to be
+the strongest ideological anchors, because a near-unanimous Strongly Agree makes a question both the biggest
+gravity well for extreme opinion and the least informative for telling students apart. Network~D then ranks that same E15 \textbf{26th} of the 47 questions in its
+giant component: with almost no variance left, a question everyone endorses cannot correlate with anything. Its anchors are instead V07, S09, V08, V10 and V12 --- statements that people genuinely vary on, and
+vary on \emph{together}. Read as a set: E15 is what the class believes, V07 and S09 are what its beliefs are
+organised around.
 
-\textbf{3. Nothing fragments.} Network A's largest component erodes one student at a time under thresholding,
-with no percolation-style collapse; Network B has a single connected component; Network C is complete, with
-$\kappa = 59 \gg 2$ and no distinction between random failure and targeted attack. The cohort has no echo
-chambers, no ideological silos and no structural choke points. Whatever divides this class, it is not topic
-segregation.
+\textbf{3. The questions that split the class are the ones that belong to no structure at all.} Network~A ranks
+statements by chance agreement $E_q$; its five most divisive are E02 (written exams measure knowledge,
+$E_q = 0.58$), T08 (AI diagnosis, 0.58), E04 (online learning, 0.63), T09 (autonomous vehicles, 0.64) and E13
+(research over infrastructure, 0.72). Network~D, built by an entirely different route, leaves 13 questions
+isolated at $\rho > 0.35$: E02, E03, E04, E08, E09, E13, S08, T04, T05, T08, T09, T14 and T15. \textbf{All five
+of Network~A's most divisive statements are in that list.} One method compares pairs of students, the other
+pairs of questions, and they agree: where this class divides, it divides idiosyncratically, without lining up
+along any shared axis.
 
-\textbf{4. Structure is small-world, broad, but never scale-free.} Network A is clustered well above random
-(6$\times$ in the sparse version) at random-like distances, $\sigma = 1.46$ and $5.66$. Network B's question
-degrees are overdispersed (dispersion index 3.75) but bounded, with $\hat{\gamma} = 0.750$ nowhere near the
-scale-free band. Both networks are broader than an ER graph and far from a power law --- unsurprising at
-$N = 91$ and $N = 60$, and worth stating as a limit rather than a discovery.
+\textbf{4. Nothing fragments except where we force it to.} Network~A's largest component erodes one student at
+a time under thresholding, with no percolation-style collapse; Network~B has a single connected component;
+Network~C is complete, with $\kappa = 59 \gg 2$ and no distinction between random failure and targeted attack.
+Network~D fragments only because a cutoff is imposed, and what falls out --- the 13 isolates --- is precisely the
+contested material. The cohort has no echo chambers and no topic silos.
 
-\textbf{5. Centrality in Network A largely measures agreeableness.} A student's total agreement tracks their
-average answer at $\rho = 0.89$, and the emphatic answerers hold the heaviest edges. Degree and closeness
-instead reward students who mix Agree and Strongly Agree and sit between the emphatic and the cautious. Both
-readings are legitimate, but neither supports a claim about \emph{which} opinions a central student holds.
+\textbf{5. Structure is small-world and broad, but never scale-free.} Network~A is clustered well above random
+(6$\times$ in its sparse version) at random-like distances, $\sigma = 1.46$ and $5.66$. Network~B's question
+degrees are overdispersed (dispersion index 3.75) but bounded, with $\hat{\gamma} = 0.750$, nowhere near the
+scale-free band. Both are broader than an ER graph and far from a power law --- unsurprising at $N = 91$ and
+$N = 60$, and worth stating as a limit rather than a discovery.
 
-\textbf{6. Agreement is topic-specific even though structure is not.} Society and Environment rank students
-most alike (pair scores 0.46, strengths 0.56); Technology and Education least (0.16). A student close to the
-centre of the environmental network may sit on the rim of the technology one. This is the clearest
-disagreement-shaped signal in an otherwise consensual class.
+\textbf{6. Centrality in Network A largely measures agreeableness; in Network D it measures alignment.} A
+student's total agreement tracks their average answer at $\rho = 0.89$, and the emphatic answerers hold the
+heaviest edges, so being ``central'' among students mostly means agreeing readily. Among questions, centrality
+means something sharper: S09 is simultaneously an anchor and the primary bridge, so inclusion is both a core
+commitment and the hinge connecting educational, civic and environmental opinion.
+
+\textbf{7. Topic matters, and the two halves of the project agree on how.} Network~A finds Society and
+Environment line students up most alike (pair scores 0.46, strengths 0.56) and Technology and Education least
+(0.16). Network~D finds the same asymmetry from the question side: ecology forms an almost unmixed module and
+the environmental block is the brightest region of the correlation heatmap, while technology items scatter into
+AI-governance and educational-modernisation modules. Section assortativity of $r = 0.304$ says the survey's own
+four sections are a weak guide to how these students actually think.
 
 \textbf{Limitations.} The cohort is small (91 usable responses), so degree-distribution claims are bounded by
-$N$; three respondents in Networks B and C answered only 15 questions, which understates their degree and
-inflates their betweenness in Network A; and a Likert survey cannot separate genuine conviction from a habit of
-reaching for the extreme end of a scale, so ``emphatic'' should be read as a response pattern, not a
-personality.
+$N$; three respondents in Networks~B and~C answered only 15 of the 60 questions, which understates their degree
+there and inflates their betweenness in Network~A; Network~D's structure depends on one free parameter, the
+$\rho > 0.35$ cutoff, which sets how many questions end up isolated; and a Likert survey cannot separate genuine
+conviction from a habit of reaching for the end of a scale, so ``emphatic'' should be read as a response
+pattern, not a personality.
 
 \section{Individual Contribution}
 
@@ -422,24 +598,29 @@ personality.
 \textbf{Member} & \textbf{Contribution} \\
 \midrule
 \textbf{Mayank Kar} &
-Network~A (student--student). Shared cleaning and encoding module \texttt{clean.py} used by the whole team;
+Network~A (student--student), and this combined report. Shared cleaning and encoding module \texttt{clean.py} used by the whole team;
 the simple and chance-adjusted agreement scores; the sparsification experiments (global threshold sweep and the
 top-2 construction); the structural measurements against ER graphs, including clustering, path lengths,
 efficiency, small-world $\sigma$ and assortativity; all five centrality measures and their rank comparison; the
 per-topic networks; \texttt{student\_network.ipynb} and the eight figures in \texttt{student\_plots/}. \\
 \addlinespace
 \textbf{Tanush Garg} &
-Network~B (student--question bipartite). The extremes filter and long-format edge list; construction and
-validation of the bipartite graph; bipartite topology (density, components, isolated respondents); question-node
-degree distribution with linear and logarithmic binning, the power-law fit and the dispersion analysis; the
-bipartite layout figure; \texttt{main.ipynb} and the LaTeX sub-report for the extremes network. \\
+Networks~B and~C (student--question bipartite and its question--question projection). The extremes filter and
+long-format edge list; construction and validation of the bipartite graph; bipartite topology (density,
+components, isolated respondents); question-node degree distribution with linear and logarithmic binning, the
+power-law fit and the dispersion analysis; the projection onto the question set and the weighted projection
+$G_Q^W$; strength, weighted betweenness and weighted eigenvector centrality on it; the Molloy--Reed evaluation
+and the robustness simulation; \texttt{main.ipynb}, the eight figures in \texttt{extreme\_plots/} and the interactive
+D3 visualisers. \\
 \addlinespace
 \textbf{Amish Goyal} &
-Network~C (question--question projection). Projection of the bipartite graph onto the question set and the
-weighted projection $G_Q^W$; strength, weighted betweenness and weighted eigenvector centrality; the
-role-based classification of anchors and bridges; the Molloy--Reed evaluation and the robustness simulation
-(targeted attack versus random failure); the projection, centrality and robustness figures; repository setup and
-the interactive D3 visualisers. \\
+Network~D (question--question correlation). Pairwise Spearman correlation across all 1{,}770 question pairs on
+the shared cleaned data; the thresholded graph at $\rho > 0.35$ with affinity weights and inverse-$\rho$
+distances; weighted eigenvector and metric betweenness centrality; Louvain community detection and the
+interpretation of the six modules; the section assortativity coefficient and identification of the isolated
+questions; \texttt{question\_network.ipynb}, the four figures in \texttt{Question Network/}, the repository's initial
+setup and its later reorganisation into per-network folders, and the project landing page
+\texttt{index.html}. \\
 \bottomrule
 \end{tabular}
 \end{center}
